@@ -4,7 +4,7 @@
 
 ## 构建与检查
 
-从仓库根目录运行：
+GitHub Actions 的 `ci` 在分支推送或 Pull Request 更新时只检查格式，不编译项目或执行测试。完整验收可在本地运行：
 
 ```sh
 cargo fmt --all -- --check
@@ -33,6 +33,8 @@ cargo test --locked --workspace --features gpu
 先执行 `cargo package --locked --workspace` 生成并验证本地包，不会上传。在提交前检查工作树时可加 `--allow-dirty`。服务包在 workspace 内用相对路径构建；归档里的清单使用 Core 的注册表版本，不依赖仓库目录结构。
 
 仓库发布和 crates.io 发布彼此独立。如果同一版本要在 crates.io 发布两个包，先发 `fleece-render-core`，确认索引可解析该版本后再发 `fleece-render-server`。只发 Core 也可以，但此时服务只能经源码、二进制或容器等其他渠道分发，不能从 crates.io 安装。项目名和服务可执行文件仍为 `fleece-render`。
+
+推送 `v0.1.0` 格式的版本标签后，`release` 会使用同一套构建步骤生成三个平台的二进制包，全部成功后自动发布到 GitHub Releases。如 `v0.1.0-rc.1` 的标签会发布为预发布版。该流程不发布 Cargo 包。
 
 ## 测试覆盖
 

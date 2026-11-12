@@ -1,5 +1,17 @@
 # 部署指南
 
+## 下载预编译版本
+
+已发布的预编译包可从 GitHub 仓库的 **Releases** 下载。尚未发布的构建产物可在 **Actions → build-binaries → 对应运行记录 → Artifacts** 中查找。
+
+| 平台 | 下载文件 | 解压后启动 |
+| --- | --- | --- |
+| Linux x86-64 (musl) | `fleece-render-linux-x86_64.tar.gz` | `./fleece-render` |
+| Linux ARM64 (musl) | `fleece-render-linux-aarch64.tar.gz` | `./fleece-render` |
+| Windows x86-64 (MSVC) | `fleece-render-windows-x86_64.zip` | `.\fleece-render.exe` |
+
+三个包都是 CPU Release 版，附带 `fleece-render.toml` 和许可证文件。请在解压目录中启动，以加载同目录的配置文件。这些二进制包与 crates.io 发布相互独立。
+
 ## 从源码运行
 
 从仓库根目录执行命令。Windows 或 Linux 可使用 Rust 1.90 或更高版本的工具链，构建 Release 版本：

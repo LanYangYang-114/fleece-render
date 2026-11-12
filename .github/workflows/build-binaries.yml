@@ -1,0 +1,96 @@
+name: build-binaries
+
+on:
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: pwsh
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_VERSION: '1.90.0'
+
+jobs:
+  build:
+    name: Build ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            target: x86_64-unknown-linux-musl
+            binary: fleece-render
+            archive: fleece-render-linux-x86_64.tar.gz
+          - os: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-musl
+            binary: fleece-render
+            archive: fleece-render-linux-aarch64.tar.gz
+          - os: windows-2022
+            target: x86_64-pc-windows-msvc
+            binary: fleece-render.exe
+            archive: fleece-render-windows-x86_64.zip
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Install musl toolchain
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends musl-tools
+
+      - name: Install Rust
+        run: rustup toolchain install $env:RUST_VERSION --profile minimal --target ${{ matrix.target }}
+
+      - name: Build release binary (CPU)
+        env:
+          CC_x86_64_unknown_linux_musl: musl-gcc
+          CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER: musl-gcc
+          CC_aarch64_unknown_linux_musl: musl-gcc
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER: musl-gcc
+        run: >-
+          cargo "+$env:RUST_VERSION" build --release --locked --no-default-features
+          -p fleece-render-server --bin fleece-render --target ${{ matrix.target }} --target-dir target
+
+      - name: Package binary
+        run: |
+          $package = 'target/binary-package'
+          $archive = 'target/${{ matrix.archive }}'
+          $binary = 'target/${{ matrix.target }}/release/${{ matrix.binary }}'
+          New-Item -ItemType Directory -Path $package -Force | Out-Null
+          Copy-Item -LiteralPath @(
+            $binary
+            'fleece-render.toml'
+            'LICENSE'
+            'THIRD_PARTY_NOTICES.md'
+            'crates/fleece-render-core/assets/LICENSE-minecraft-font-CC-BY-SA-3.0.txt'
+          ) -Destination $package
+
+          $executable = Join-Path $package '${{ matrix.binary }}'
+          if ($env:RUNNER_OS -eq 'Linux') {
+            chmod +x $executable
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+
+          if ($env:RUNNER_OS -eq 'Windows') {
+            Compress-Archive -Path "$package/*" -DestinationPath $archive -Force
+          } else {
+            tar -czf $archive -C $package .
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+
+      - name: Upload binary archive
+        uses: actions/upload-artifact@v7
+        with:
+          path: target/${{ matrix.archive }}
+          archive: false
+          if-no-files-found: error

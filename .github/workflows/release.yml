@@ -1,0 +1,64 @@
+name: release
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+      - 'v[0-9]+.[0-9]+.[0-9]+-[0-9A-Za-z]*'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: ${{ github.ref_type == 'tag' && !github.event.deleted }}
+    uses: ./.github/workflows/build-binaries.yml
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download binary archives from this run
+        uses: actions/download-artifact@v8
+        with:
+          pattern: fleece-render-*
+          path: release-assets
+          merge-multiple: true
+          skip-decompress: true
+
+      - name: Publish GitHub Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="$GITHUB_REF_NAME"
+          if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z][0-9A-Za-z-]*(\.[0-9A-Za-z-]+)*)?$ ]]; then
+            echo 'Expected a version tag such as v0.1.0 or v0.1.0-rc.1.' >&2
+            exit 1
+          fi
+
+          assets=(
+            release-assets/fleece-render-linux-x86_64.tar.gz
+            release-assets/fleece-render-linux-aarch64.tar.gz
+            release-assets/fleece-render-windows-x86_64.zip
+          )
+          for asset in "${assets[@]}"; do
+            if [[ ! -f "$asset" || ! -s "$asset" ]]; then
+              echo "Missing or empty build artifact: $asset" >&2
+              exit 1
+            fi
+          done
+
+          flags=(--repo "$GITHUB_REPOSITORY" --verify-tag --generate-notes)
+          if [[ "$tag" == *-* ]]; then
+            flags+=(--prerelease)
+          fi
+          gh release create "$tag" "${assets[@]}" "${flags[@]}"

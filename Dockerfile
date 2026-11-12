@@ -5,12 +5,11 @@ COPY Cargo.toml Cargo.lock ./
 COPY crates ./crates
 RUN cargo build --release --locked --bin fleece-render
 
-FROM debian:bookworm-slim AS runtime
+FROM debian:bookworm-slim AS runtime-base
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates wget \
     && rm -rf /var/lib/apt/lists/* \
     && useradd --system --create-home --home-dir /var/lib/fleece-render fleece-render
-COPY --from=builder /app/target/release/fleece-render /usr/local/bin/fleece-render
 COPY fleece-render.toml /etc/fleece-render.toml
 COPY LICENSE THIRD_PARTY_NOTICES.md \
     crates/fleece-render-core/assets/LICENSE-minecraft-font-CC-BY-SA-3.0.txt \
@@ -22,3 +21,13 @@ WORKDIR /var/lib/fleece-render
 EXPOSE 57680
 USER fleece-render
 ENTRYPOINT ["/usr/local/bin/fleece-render"]
+
+# Package the Linux artifacts built by the release workflow without recompiling.
+FROM runtime-base AS release
+ARG TARGETARCH
+COPY --from=release-binaries --chmod=0755 /${TARGETARCH}/fleece-render /usr/local/bin/fleece-render
+RUN ["/usr/local/bin/fleece-render", "--version"]
+
+# Keep source builds (including docker compose) as the default target.
+FROM runtime-base AS local
+COPY --from=builder /app/target/release/fleece-render /usr/local/bin/fleece-render

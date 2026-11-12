@@ -1,8 +1,8 @@
 # Changelog
 
-## 0.1.0 (unreleased)
+## 0.1.0
 
-- First release under the fleece-render name: `fleece-render` executable, `fleece-render-core` and `fleece-render-server` crates, `fleece-render.toml`, `FLEECE_RENDER_*` environment variables, and `X-Fleece-Render-*` response headers. Routes and request fields are unchanged.
+- Adopted the fleece-render name: `fleece-render` executable, `fleece-render-core` and `fleece-render-server` crates, `fleece-render.toml`, `FLEECE_RENDER_*` environment variables, and `X-Fleece-Render-*` response headers. Routes and request fields are unchanged.
 - Loopback-only listener and no permissive CORS by default; the Docker container listens on all container interfaces but Compose publishes only to host loopback. Texture and profile downloads are capped while reading.
 - Optional Vulkan acceleration for 3D rendering, with the CPU-only build retained as the default.
 

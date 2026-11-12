@@ -1,6 +1,6 @@
 # HTTP API 文档
 
-本文档描述 fleece-render 的 HTTP 接口。以下示例使用 `http://127.0.0.1:57680`；启动与配置见[部署指南](DEPLOYMENT.md)。0.1.0 使用 `X-Fleece-Render-*` PNG 响应头；此前试用版本的调用方需更新响应头读取逻辑。HTTP 路由及 camelCase 请求参数未改名。
+本文档描述 fleece-render 的 HTTP 接口。以下示例使用 `http://127.0.0.1:57680`；启动与配置见[部署指南](DEPLOYMENT.md)。PNG 响应的 `X-Fleece-Render-*` 字段见[图片响应头](#8-图片响应头)。
 
 ## 1. 基本约定
 

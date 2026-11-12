@@ -7,7 +7,7 @@ fleece-render 被拆成两个主要 crate：
 1. `fleece-render-core`：纯 Rust 的皮肤模型、场景构建、相机、CPU / 可选 GPU 光栅化、2D 头像合成和 PNG 输出。
 2. `fleece-render-server`：Axum HTTP 路由、配置、profile provider、纹理输入、缓存、限流和日志。
 
-核心 crate 不依赖 Axum、Reqwest、TOML、Mojang 或任何 HTTP 业务代码。这样可以在命令行、测试程序或未来其他服务中复用渲染引擎。
+核心 crate 不依赖 Axum、Reqwest、TOML、Mojang 或任何 HTTP 业务代码。渲染引擎可由命令行工具、测试程序和其他服务直接复用。
 
 服务可在无图形界面的环境中运行。CPU 后端始终可用；Vulkan GPU 后端仅在启用 `gpu` Cargo feature 时编译。
 
@@ -77,7 +77,7 @@ HTTP 层负责按风格选择输入（如头像不加载披风），并将共用
 
 ### 新增视角
 
-当前 `Parts` 表示 `front`、`back`、`both`、`all`。新增视角时应：
+`Parts` 表示 `front`、`back`、`both`、`all`。新增视角时应：
 
 1. 在核心层增加视图枚举或风格配置；
 2. 保持现有 `Parts` 和已公开路由的语义不变；
@@ -86,7 +86,7 @@ HTTP 层负责按风格选择输入（如头像不加载披风），并将共用
 
 ### 渲染后端
 
-`RenderBackend` 接口已经隔离后端：
+`RenderBackend` 定义渲染后端接口：
 
 ```rust
 pub trait RenderBackend: Send + Sync {

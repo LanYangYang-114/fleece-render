@@ -1,6 +1,6 @@
 # Test textures
 
-`source_skin.png` and `source_cape.png` are the original regression-test
-textures from the pre-rename project. Their authorship and redistribution
-terms have not been verified. The server crate carries a byte-identical copy
-of the skin so its tests can run from a standalone Cargo package.
+`source_skin.png` and `source_cape.png` are original player skin and cape
+textures created by the project maintainer for personal use and included here
+as regression-test fixtures. The server crate carries a byte-identical copy of
+the skin so its tests can run from a standalone Cargo package.

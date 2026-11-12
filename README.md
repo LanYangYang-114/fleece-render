@@ -13,7 +13,7 @@ fleece-render 是一个用 Rust 编写的 **Minecraft 玩家皮肤渲染器**。
 
 ## 快速开始
 
-在 Windows 或 Linux 上，使用 Rust 1.90 或更高版本，在仓库根目录运行：
+按[部署指南](docs/DEPLOYMENT.md#从源码运行)准备 Rust 工具链，然后在仓库根目录运行：
 
 ```sh
 cargo run --release --locked -p fleece-render-server --bin fleece-render -- --host 127.0.0.1

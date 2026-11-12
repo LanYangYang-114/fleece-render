@@ -1,8 +1,31 @@
 # 部署指南
 
+## 下载预编译版本
+
+从 GitHub 仓库的 **Releases** 选择所需版本，再按系统和架构下载对应的附件。
+
+| 平台 | 下载文件 | 解压后启动 |
+| --- | --- | --- |
+| Linux x86-64 (musl) | `fleece-render-linux-x86_64.tar.gz` | `./fleece-render` |
+| Linux ARM64 (musl) | `fleece-render-linux-aarch64.tar.gz` | `./fleece-render` |
+| Windows x86-64 (MSVC) | `fleece-render-windows-x86_64.zip` | `.\fleece-render.exe` |
+
+三个包都是 CPU Release 版，附带 `fleece-render.toml` 和许可证文件。请在解压目录中启动，以加载同目录的配置文件。这些二进制包与 crates.io 发布相互独立。
+
+## 通过 Cargo 安装
+
+从 crates.io 安装 HTTP 服务：
+
+```sh
+cargo install --locked fleece-render-server
+fleece-render --host 127.0.0.1
+```
+
+`fleece-render-core` 是库；如果只需要在 Rust 项目中使用渲染功能，用 `cargo add fleece-render-core` 添加依赖。GitHub 预发布标签不会同步到 crates.io。
+
 ## 从源码运行
 
-从仓库根目录执行命令。Windows 或 Linux 可使用 Rust 1.90 或更高版本的工具链，构建 Release 版本：
+使用满足根目录 [`Cargo.toml`](../Cargo.toml) 中 `[workspace.package].rust-version` 要求的 Rust 工具链。在仓库根目录构建：
 
 ```sh
 cargo build --release --locked --workspace
@@ -43,7 +66,15 @@ cargo build --release --locked -p fleece-render-server --features gpu --bin flee
 
 ## Docker
 
-使用仓库中的 Compose 配置构建和启动服务。镜像使用 `fleece-render:local` 作为本地标签，服务实际版本仍由构建时的 Cargo 版本决定。端口默认只发布到宿主机回环地址：
+从 GitHub Container Registry 拉取 `latest` 镜像并启动服务：
+
+```sh
+docker run --pull=always -d --name fleece-render -p 127.0.0.1:57680:57680 ghcr.io/lanyangyang-114/fleece-render:latest
+```
+
+镜像支持 Linux x86-64 和 ARM64，Docker 会自动选择对应平台。正式版同时提供 `latest` 标签；预发布版只有版本标签。需要固定版本时，将命令中的 `latest` 替换为所需版本的 Git 标签。
+
+也可以使用仓库中的 Compose 配置从源码构建和启动服务。镜像使用 `fleece-render:local` 作为本地标签，服务实际版本仍由构建时的 Cargo 版本决定。端口默认只发布到宿主机回环地址：
 
 ```sh
 docker compose up --build -d

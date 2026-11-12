@@ -4,7 +4,7 @@
 
 ## 构建与检查
 
-从仓库根目录运行：
+GitHub Actions 的 `ci` 在分支推送或 Pull Request 更新时只检查格式，不编译项目或执行测试。完整验收可在本地运行：
 
 ```sh
 cargo fmt --all -- --check
@@ -32,7 +32,18 @@ cargo test --locked --workspace --features gpu
 
 先执行 `cargo package --locked --workspace` 生成并验证本地包，不会上传。在提交前检查工作树时可加 `--allow-dirty`。服务包在 workspace 内用相对路径构建；归档里的清单使用 Core 的注册表版本，不依赖仓库目录结构。
 
-仓库发布和 crates.io 发布彼此独立。如果同一版本要在 crates.io 发布两个包，先发 `fleece-render-core`，确认索引可解析该版本后再发 `fleece-render-server`。只发 Core 也可以，但此时服务只能经源码、二进制或容器等其他渠道分发，不能从 crates.io 安装。项目名和服务可执行文件仍为 `fleece-render`。
+### 版本标签与发布渠道
+
+`release` 在推送版本标签时复用 `build-binaries`，生成三个平台的二进制包并上传到 GitHub Releases。正式标签的版本号必须与两个 Cargo 包一致；预发布标签只发布 GitHub 预发行版和容器镜像，不发布到 crates.io。
+
+GitHub Release 创建成功后，crates.io 和镜像各自发布。镜像复用本次构建的 Linux CPU 二进制，支持 `linux/amd64` 和 `linux/arm64`，使用 Git 标签作为镜像标签。正式版同时更新 `latest`，预发布版只发布版本标签。某个渠道失败不会撤回其他渠道已发布的内容。
+
+### 发布配置（维护者）
+
+- **crates.io**：在仓库 **Settings → Environments** 中创建 `crates-io` 环境，将允许发布两个包的 API token 保存为环境密钥 `CARGO_REGISTRY_TOKEN`。首次创建包时，token 需要允许发布新包。建议设置较短有效期，并限制该环境只接受版本标签。
+- **GHCR**：使用仓库的 `GITHUB_TOKEN` 推送镜像，无需 Docker Hub 账号或额外密钥。若要允许匿名拉取，在 GitHub **Packages** 中将 `fleece-render` 镜像包设为 Public。
+
+发布前可以用 `cargo publish --dry-run --locked --registry crates-io -p fleece-render-core -p fleece-render-server` 模拟发布，不会上传。正式发布时 Cargo 会按依赖顺序先上传 Core，等待索引可解析后再上传 Server。如果 Core 已发布而 Server 失败，确认 Core 的对应版本已进入索引后，在相同标签下用 `cargo publish --locked --registry crates-io -p fleece-render-server` 补发，不要重新发布 Core。
 
 ## 测试覆盖
 
@@ -59,9 +70,9 @@ powershell -ExecutionPolicy Bypass -File .\scripts\acceptance.ps1 -Online
 
 验收检查默认尺寸下请求的五秒目标，并比较不同输入形式生成图片的 SHA-256。Linux 可以运行 workspace 测试，再启动服务，按 [API 文档](API.md)手动验证。
 
-## 依赖公告
+## 依赖检查
 
-发布前检查 `Cargo.lock` 中的依赖。`fontdue` 当前间接依赖 `ttf-parser`，后者有停止维护公告 `RUSTSEC-2026-0192`，并非已知漏洞。服务只解析编译时内嵌的 Minecraft 字体，不接受上传的字体；后续升级渲染库时复核此依赖。
+发布前以 [`Cargo.lock`](../Cargo.lock) 为准，核对直接和间接依赖的安全公告及维护状态。名称标签只使用编译时内嵌的字体，服务不接受上传的字体。
 
 ## 生成物
 

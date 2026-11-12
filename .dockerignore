@@ -1,0 +1,9 @@
+# Only files copied by the Dockerfile belong in the build context.
+**
+!Cargo.toml
+!Cargo.lock
+!crates/
+!crates/**
+!fleece-render.toml
+!LICENSE
+!THIRD_PARTY_NOTICES.md

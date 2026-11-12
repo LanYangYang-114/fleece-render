@@ -1,0 +1,12 @@
+# Local Rust toolchains and build artifacts
+/target/
+/.cargo/
+/.rustup/
+/.toolchains/
+/.tmp/
+
+# Generated output and local environment settings
+/output/
+*.log
+.env
+.env.*

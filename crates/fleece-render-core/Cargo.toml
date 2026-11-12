@@ -1,0 +1,29 @@
+[package]
+name = "fleece-render-core"
+version.workspace = true
+edition.workspace = true
+license = "MIT AND CC-BY-SA-3.0"
+rust-version.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme = "README.md"
+description = "Pure-Rust Minecraft skin and avatar renderer with optional Vulkan acceleration"
+keywords = ["minecraft", "skin", "avatar", "rendering"]
+categories = ["graphics", "rendering"]
+include = ["/src/**", "/assets/**", "/examples/**", "/tests/**", "/README.md", "/LICENSE", "/THIRD_PARTY_NOTICES.md"]
+
+[features]
+gpu = ["dep:bytemuck", "dep:pollster", "dep:wgpu"]
+
+[dependencies]
+bytemuck = { version = "1.24", features = ["derive"], optional = true }
+pollster = { version = "0.4", optional = true }
+wgpu = { version = "27.0.1", default-features = false, features = ["std", "vulkan", "wgsl"], optional = true }
+fontdue = "0.9"
+image.workspace = true
+serde.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+anyhow.workspace = true

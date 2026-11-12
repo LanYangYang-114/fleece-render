@@ -1,0 +1,57 @@
+# fleece-render configuration / fleece-render 配置文件
+# This file is UTF-8 encoded. / 本文件使用 UTF-8 编码。
+
+[server]
+# Address to listen on. Use 127.0.0.1 for local-only access. / 监听地址；仅本机访问时可使用 127.0.0.1。
+host = "127.0.0.1"
+# Enable permissive CORS only in a trusted deployment. / 仅在可信部署中启用宽松跨源访问。
+allow_cors = false
+# HTTP port. / HTTP 端口。
+port = 57680
+# Maximum number of CPU renders running at the same time. / 同时执行的 CPU 渲染数量上限。
+render_concurrency = 4
+# tracing filter; set RUST_LOG to override it. / 日志过滤器；可用环境变量 RUST_LOG 覆盖。
+log_filter = "fleece_render=info,fleece_render_server=info,fleece_render_core=info,tower_http=info"
+# Append logs here and also mirror them to stderr. / 日志追加写入此文件，同时镜像到标准错误输出。
+log_file = "output/logs/fleece-render.log"
+# Global request body limit in bytes. Route-specific limits may be lower. / 全局请求体上限（字节），各路由可能有更小的上限。
+body_limit_bytes = 16777216
+
+[render]
+# Backend: auto prefers Vulkan if built with the gpu feature, otherwise CPU. / 后端：启用 gpu 功能时 auto 优先使用 Vulkan，否则使用 CPU。
+backend = "auto"
+# Output scale multiplier; 1.5 gives 525x1005 for one view. / 输出清晰度倍数；1.5 时单视角输出为 525x1005。
+definition = 1.5
+# Keep true for transparent PNG background, false for white background. / true 保留透明 PNG 背景，false 使用白色背景。
+transparent = false
+# Width of one view before definition scaling. / 单个视角在清晰度缩放前的宽度。
+panel_width = 350
+# Height of one view before definition scaling. / 单个视角在清晰度缩放前的高度。
+panel_height = 670
+# Perspective field of view in degrees. / 透视相机视野角度（度）。
+fov = 70.0
+# Camera zoom multiplier. / 相机缩放倍数。
+zoom = 1.0
+# Vertical camera target position. / 相机垂直瞄准位置。
+target_y = 4.0
+# Name-tag height and vertical position. / 名牌高度与垂直位置。
+name_tag_height = 4.0
+name_tag_y = 22.0
+# Maximum name-tag width as a fraction of the panel. / 名牌最大宽度占面板宽度的比例。
+name_tag_max_width_ratio = 0.80
+# Render a soft ground shadow. / 是否绘制柔和地面阴影。
+shadow = true
+# Supersampling factor used by the CPU rasterizer. / CPU 光栅化器使用的超采样倍数。
+supersample = 2
+# Per-render timeout in seconds. / 单次渲染超时时间（秒）。
+timeout_seconds = 30.0
+# Maximum decoded texture size accepted by the server. / 服务端允许的最大解码纹理大小（字节）。
+max_texture_bytes = 8388608
+
+[network]
+# Timeout for Mojang/profile requests. / Mojang/玩家资料请求超时时间（秒）。
+profile_timeout_seconds = 15.0
+# Timeout for remote skin/cape downloads. / 远程皮肤或披风下载超时时间（秒）。
+texture_timeout_seconds = 20.0
+# Mojang and texture requests bypass HTTP(S)_PROXY by design. / Mojang 和纹理请求按设计不经过 HTTP(S)_PROXY。
+# Optional User-Agent override. If omitted, use fleece-render/<version>. / 可选的 User-Agent 覆盖项；省略时使用 fleece-render/<版本号>。

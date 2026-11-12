@@ -1,8 +1,12 @@
-# fleece-render
+<div align="center">
 
-fleece-render 是一个用 Rust 编写的 **Minecraft 玩家皮肤渲染器**。可通过 API 接口调用，也可将渲染核心作为 Rust 库使用。无需浏览器或图形界面，默认使用 CPU，也可选用 Vulkan GPU 加速 3D 渲染。
+# Fleece Render
 
-项目和可执行文件都叫 `fleece-render`。Rust workspace 分为两个 Cargo 包：`fleece-render-core` 提供渲染库，`fleece-render-server` 依赖它并提供 HTTP 服务。
+简体中文 | [English](README_en.md)
+
+使用Rust编写的Minecraft玩家模型渲染引擎
+
+</div>
 
 ## 功能
 
@@ -10,6 +14,31 @@ fleece-render 是一个用 Rust 编写的 **Minecraft 玩家皮肤渲染器**。
 - **2D 头像**：输出 64×64 PNG，支持透明背景。
 - **双层皮肤**：3D 全身图和 2D 头像均默认启用皮肤外层，也可只渲染基础层。
 - **多种输入**：可按玩家名称或 UUID 从 Mojang 或 LittleSkin 获取皮肤，也可通过 URL、服务端本地文件、Base64、data URL 或图片字节提供皮肤纹理。
+
+## 示例
+
+3D 全身
+
+```plain
+GET http://127.0.0.1:57680/mojang/image/both
+    ?name=LanYangYang_CN
+    &style=3d
+    &transparent=true
+    &showName=false
+```
+
+<img src="assets/example_3d.png" alt="带披风的 Minecraft 3D 角色，左侧为正面、右侧为背面，背景透明" width="320">
+
+2D 头像
+
+```plain
+GET http://127.0.0.1:57680/mojang/image/front
+    ?name=LanYangYang_CN
+    &style=avatar
+    &transparent=true
+```
+
+<img src="assets/example_avatar.png" alt="带皮肤外层的 Minecraft 2D 头像，背景透明" width="128">
 
 ## 快速开始
 

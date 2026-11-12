@@ -2,7 +2,7 @@
 
 ## Read first
 
-- `README.md`
+- `README.md` (Simplified Chinese) or `README_en.md` (English)
 - `docs/ARCHITECTURE.md`
 - `docs/API.md`
 - `docs/HANDOFF.md`
@@ -19,6 +19,7 @@
 8. Every render must remain under the five-second target on CPU at the default size.
 9. Add timeouts and byte limits to any new network input.
 10. Update `docs/API.md` when the HTTP contract changes and `docs/HANDOFF.md` when architecture changes.
+11. When changing shared README content, update both `README.md` and `README_en.md` in the same change. Keep commands, parameters, and documentation links in sync.
 
 ## Build / Test
 

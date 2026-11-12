@@ -1,6 +1,6 @@
 # 开发与验证
 
-本文面向项目维护者和贡献者。开始修改前，请阅读[仓库维护规则](../AGENTS.md)、[架构设计](ARCHITECTURE.md)和 [HTTP API 文档](API.md)。部署和日志配置见[部署指南](DEPLOYMENT.md)。
+本文面向项目维护者和贡献者。项目概览和快速开始见[中文 README](../README.md)或 [English README](../README_en.md)。开始修改前，请阅读[仓库维护规则](../AGENTS.md)、[架构设计](ARCHITECTURE.md)和 [HTTP API 文档](API.md)。部署和日志配置见[部署指南](DEPLOYMENT.md)。
 
 ## 构建与检查
 
@@ -80,6 +80,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\acceptance.ps1 -Online
 
 ## 维护约定
 
+- 修改 README 的共用内容（如功能、快速开始、部署安全说明或许可）时，在同一次变更中更新 [`README.md`](../README.md) 和 [`README_en.md`](../README_en.md)，确保示例命令、参数和文档链接一致。
 - 改动 HTTP 合约时更新 [API 文档](API.md)和对应测试；保留已公开路由及 camelCase 请求字段。
 - 改动 crate 边界或请求处理流程时更新[架构设计](ARCHITECTURE.md)和本文。
 - 改动模型、UV、相机或采样时更新[渲染实现](RENDERING.md)，并验证输出尺寸、确定性和 CPU 性能目标。

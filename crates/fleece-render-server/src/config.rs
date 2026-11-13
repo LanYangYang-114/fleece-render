@@ -1,3 +1,4 @@
+use std::fmt;
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
@@ -12,17 +13,52 @@ pub struct AppConfig {
     pub network: NetworkConfig,
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Deserialize)]
 #[serde(default)]
 pub struct ServerConfig {
     pub host: String,
     pub port: u16,
     pub allow_cors: bool,
+    pub auth_token: String,
     pub render_concurrency: usize,
     pub log_filter: String,
     pub log_file: Option<String>,
     pub log_max_files: usize,
     pub body_limit_bytes: usize,
+}
+
+impl fmt::Debug for ServerConfig {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ServerConfig")
+            .field("host", &self.host)
+            .field("port", &self.port)
+            .field("allow_cors", &self.allow_cors)
+            .field("auth_token", &"[redacted]")
+            .field("render_concurrency", &self.render_concurrency)
+            .field("log_filter", &self.log_filter)
+            .field("log_file", &self.log_file)
+            .field("log_max_files", &self.log_max_files)
+            .field("body_limit_bytes", &self.body_limit_bytes)
+            .finish()
+    }
+}
+
+impl ServerConfig {
+    pub(crate) fn validate_auth_token(&self) -> Result<()> {
+        if self.auth_token.is_empty() {
+            return Ok(());
+        }
+        // RFC 6750 b64token: one or more token characters, then optional '=' padding.
+        let token = self.auth_token.trim_end_matches('=');
+        if token.is_empty()
+            || !token
+                .bytes()
+                .all(|b| b.is_ascii_alphanumeric() || b"-._~+/".contains(&b))
+        {
+            anyhow::bail!("server.auth_token must be empty or a valid Bearer token");
+        }
+        Ok(())
+    }
 }
 
 impl Default for ServerConfig {
@@ -31,6 +67,7 @@ impl Default for ServerConfig {
             host: "127.0.0.1".to_owned(),
             port: 57680,
             allow_cors: false,
+            auth_token: String::new(),
             render_concurrency: 4,
             log_filter:
                 "fleece_render=info,fleece_render_server=info,fleece_render_core=info,tower_http=info"
@@ -168,6 +205,7 @@ impl AppConfig {
     }
 
     fn validate(&self) -> Result<()> {
+        self.server.validate_auth_token()?;
         if self.server.port == 0 {
             anyhow::bail!("server.port must be non-zero");
         }
@@ -202,6 +240,30 @@ impl AppConfig {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn bearer_token_defaults_to_empty_and_is_redacted_in_debug_output() {
+        let defaults: AppConfig = toml::from_str("").unwrap();
+        assert!(defaults.server.auth_token.is_empty());
+        let config: AppConfig =
+            toml::from_str("[server]\nauth_token = 'my-Secret_123+/=='").unwrap();
+        assert_eq!(config.server.auth_token, "my-Secret_123+/==");
+        config.validate().unwrap();
+        assert!(!format!("{config:?}").contains("my-Secret_123+/=="));
+    }
+
+    #[test]
+    fn invalid_bearer_tokens_are_rejected() {
+        let mut config = AppConfig::default();
+        for token in [" ", "secret value", "secret\t", "secret=more", "=", "令牌"] {
+            config.server.auth_token = token.to_owned();
+            let error = config.validate().unwrap_err().to_string();
+            assert_eq!(
+                error,
+                "server.auth_token must be empty or a valid Bearer token"
+            );
+        }
+    }
 
     #[test]
     fn log_retention_defaults_to_thirty_and_accepts_positive_overrides() {

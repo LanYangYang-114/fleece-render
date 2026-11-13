@@ -1,6 +1,7 @@
 use axum::body::{Body, Bytes};
 use axum::extract::{Path, Query, State};
 use axum::http::{HeaderValue, Request, StatusCode, header};
+use axum::middleware::{self, Next};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{Json, Router};
@@ -12,11 +13,14 @@ use fleece_render_core::{
 use serde::Deserialize;
 use serde_json::{Value, json};
 use std::str::FromStr;
+use std::sync::Arc;
+use subtle::ConstantTimeEq;
 use tower_http::cors::CorsLayer;
 use tower_http::limit::RequestBodyLimitLayer;
 use tower_http::trace::TraceLayer;
 use tracing::Span;
 
+use crate::config::AppConfig;
 use crate::error::{ApiError, ApiResult};
 use crate::input::decode_request_body;
 use crate::providers::{PlayerProfile, ProfileSource};
@@ -38,6 +42,13 @@ pub fn build_router(state: AppState) -> Router {
         .layer(RequestBodyLimitLayer::new(body_limit));
     if state.config.server.allow_cors {
         router = router.layer(CorsLayer::permissive());
+    }
+    if !state.config.server.auth_token.is_empty() {
+        // Outside CORS and body limits so OPTIONS and oversized requests also require auth.
+        router = router.layer(middleware::from_fn_with_state(
+            state.config.clone(),
+            require_bearer_token,
+        ));
     }
     router
         .layer(
@@ -75,6 +86,48 @@ pub fn build_router(state: AppState) -> Router {
                 ),
         )
         .with_state(state)
+}
+
+async fn require_bearer_token(
+    State(config): State<Arc<AppConfig>>,
+    request: Request<Body>,
+    next: Next,
+) -> Response {
+    if request.uri().path() == "/health" {
+        return next.run(request).await;
+    }
+
+    let mut values = request.headers().get_all(header::AUTHORIZATION).iter();
+    let credential = values
+        .next()
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| value.split_once(' '))
+        .filter(|(scheme, _)| scheme.eq_ignore_ascii_case("Bearer"))
+        .map(|(_, token)| token.trim_start_matches(' '));
+    let authorized = values.next().is_none()
+        && credential.is_some_and(|token| {
+            bool::from(token.as_bytes().ct_eq(config.server.auth_token.as_bytes()))
+        });
+    let mut response = if authorized {
+        next.run(request).await
+    } else {
+        let mut response = ApiError::new(
+            StatusCode::UNAUTHORIZED,
+            "unauthorized",
+            "A valid Bearer token is required",
+        )
+        .into_response();
+        response.headers_mut().insert(
+            header::WWW_AUTHENTICATE,
+            HeaderValue::from_static("Bearer realm=\"fleece-render\""),
+        );
+        response
+    };
+    // Override the normal public PNG caching policy on protected routes.
+    response
+        .headers_mut()
+        .insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
+    response
 }
 
 /// Return query parameter names without logging their values. This keeps skin

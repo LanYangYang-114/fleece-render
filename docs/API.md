@@ -12,6 +12,17 @@
 - `front`、`back` 是单视角；`both` 是左右拼接的正反视图；`all` 在 JSON 接口中返回三张图，在 PNG 接口中返回正反拼图。
 - `transparent=false` 使用白色背景；`transparent=true` 保留 PNG alpha 通道。
 
+### Bearer token 认证
+
+`[server]` 下的 `auth_token` 默认留空（也可省略），此时无需认证。设置非空值并重启服务后，除精确路径 `/health` 外，所有请求都必须提供 `Authorization: Bearer <token>`，包括服务信息、渲染接口、未知路径及 `OPTIONS` 请求。Token 区分大小写；不要通过查询参数传递。本文其余示例省略认证头，启用认证后请自行添加。例如：
+
+```powershell
+Invoke-WebRequest -UseBasicParsing 'http://127.0.0.1:57680/api/v1/styles' `
+  -Headers @{ Authorization = 'Bearer <token>' }
+```
+
+将 `<token>`（包括尖括号）替换为配置中的值。认证头缺失、格式无效、重复或 Token 不匹配时，返回 `401 Unauthorized`、`WWW-Authenticate: Bearer realm="fleece-render"`，以及 `code` 为 `unauthorized` 的错误响应。受保护的响应带有 `Cache-Control: no-store`，不允许缓存。跨源浏览器请求的预检不会携带 Token；即使启用了 `server.allow_cors`，预检仍会被拒绝。浏览器客户端可通过同源入口访问。
+
 ## 2. 服务信息
 
 `version` 为构建时的项目版本。以下响应示例用 `<version>` 表示实际值。
@@ -32,7 +43,7 @@
 
 ### `GET /health`
 
-不访问 Mojang，仅返回进程和渲染器状态：
+不需要认证，也不访问 Mojang，仅返回进程和渲染器状态：
 
 ```json
 {
@@ -324,6 +335,7 @@ PNG 响应会包含：
 | HTTP 状态码 | `code` | 场景 |
 | ---: | --- | --- |
 | 400 | `invalid_request` / `texture` / `unknown_style` | 参数、图片或风格无效。 |
+| 401 | `unauthorized` | 已启用 Bearer 认证，请求未提供有效凭据。 |
 | 404 | `player_not_found` | profile 不存在。 |
 | 504 | `timeout` | 上游下载或渲染超时。 |
 | 502 | `upstream` | Mojang、LittleSkin 或纹理上游错误。 |

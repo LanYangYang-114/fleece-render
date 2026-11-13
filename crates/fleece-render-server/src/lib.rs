@@ -44,6 +44,7 @@ struct CachedProfile {
 
 impl AppState {
     pub fn new(config: AppConfig) -> Result<Self> {
+        config.server.validate_auth_token()?;
         let backend = config.render.backend_kind()?;
         let engine =
             RenderEngine::new(backend).with_context(|| "failed to initialize rendering engine")?;

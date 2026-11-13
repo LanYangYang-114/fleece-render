@@ -48,7 +48,7 @@ cargo run --release --locked -p fleece-render-server --bin fleece-render -- --ho
 
 The service is available at `http://127.0.0.1:57680`. Both styles show the outer skin layer by default. Set the `showOuterLayer=false` query parameter to render just the base layer. See the [HTTP API reference (Chinese)](docs/API.md) for rendering endpoints, request examples, parameters, and response formats. For build scripts, Docker, configuration, and logging, see the [deployment guide (Chinese)](docs/DEPLOYMENT.md).
 
-> Only allow trusted clients to access the service. Texture inputs can read local files on the server and fetch remote URLs. Read the [deployment security notes (Chinese)](docs/DEPLOYMENT.md#安全边界) before deploying, and do not expose the service directly to the public internet.
+> Set `server.auth_token` in `fleece-render.toml` to enable Bearer authentication (off by default; `/health` never requires authentication). Only allow trusted clients to access the service. Texture inputs can read local files on the server and fetch remote URLs. Read the [deployment security notes (Chinese)](docs/DEPLOYMENT.md#安全边界) before deploying, and do not expose the service directly to the public internet.
 
 ### Optional GPU acceleration
 

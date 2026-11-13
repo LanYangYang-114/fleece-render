@@ -366,6 +366,156 @@ async fn avatar_supports_v1_json_and_requires_front() {
     }
 }
 
+const AUTH_TOKEN: &str = "test-Token_123";
+
+fn authenticated_app(allow_cors: bool) -> axum::Router {
+    let mut config = config("cpu");
+    config.server.auth_token = AUTH_TOKEN.to_owned();
+    config.server.allow_cors = allow_cors;
+    build_router(AppState::new(config).unwrap())
+}
+
+#[tokio::test]
+async fn bearer_auth_protects_all_paths_except_health() {
+    use axum::http::header;
+
+    let app = authenticated_app(true);
+    for (method, path) in [
+        ("GET", "/"),
+        ("HEAD", "/"),
+        ("GET", "/url/image/front"),
+        ("GET", "/url/json/all"),
+        ("GET", "/mojang/image/front"),
+        ("GET", "/littleskin/image/front"),
+        ("GET", "/api/v1"),
+        ("GET", "/api/v1/styles"),
+        ("POST", "/api/v1/render/front"),
+        ("POST", "/raw/image/front"),
+        ("PUT", "/"),
+        ("GET", "/unknown"),
+        ("GET", "/health/"),
+        ("OPTIONS", "/api/v1/styles"),
+    ] {
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method(method)
+                    .uri(path)
+                    .header(header::ORIGIN, "https://client.example")
+                    .header(header::ACCESS_CONTROL_REQUEST_METHOD, "GET")
+                    .header(header::ACCESS_CONTROL_REQUEST_HEADERS, "authorization")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(
+            response.status(),
+            StatusCode::UNAUTHORIZED,
+            "{method} {path}"
+        );
+        assert_eq!(
+            response.headers()[header::WWW_AUTHENTICATE],
+            "Bearer realm=\"fleece-render\""
+        );
+        if method != "HEAD" {
+            let body: Value = serde_json::from_slice(&body_bytes(response).await).unwrap();
+            assert_eq!(body["code"], "unauthorized");
+        }
+    }
+
+    for (path, authorization, expected) in [
+        ("/health", None, StatusCode::OK),
+        ("/health?probe=true", Some("Bearer wrong"), StatusCode::OK),
+        (
+            "/api/v1/styles",
+            Some("bEaReR  test-Token_123"),
+            StatusCode::OK,
+        ),
+        (
+            "/unknown",
+            Some("Bearer test-Token_123"),
+            StatusCode::NOT_FOUND,
+        ),
+    ] {
+        let mut request = Request::builder().uri(path);
+        if let Some(value) = authorization {
+            request = request.header(header::AUTHORIZATION, value);
+        }
+        let response = app
+            .clone()
+            .oneshot(request.body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+        assert_eq!(response.status(), expected, "{path}");
+    }
+}
+
+#[tokio::test]
+async fn bearer_auth_rejects_bad_credentials_before_processing_the_body() {
+    use axum::http::{HeaderValue, header};
+
+    let app = authenticated_app(false);
+    for values in [
+        vec![],
+        vec![HeaderValue::from_static("Bearer")],
+        vec![HeaderValue::from_static("Bearer wrong")],
+        vec![HeaderValue::from_static("Basic test-Token_123")],
+        vec![HeaderValue::from_static("Bearer test-token_123")],
+        vec![HeaderValue::from_static("Bearer test-Token_123 extra")],
+        vec![HeaderValue::from_bytes(b"Bearer \xff").unwrap()],
+        vec![HeaderValue::from_static("Bearer test-Token_123"); 2],
+    ] {
+        let mut request = Request::builder()
+            .method("POST")
+            .uri("/raw/image/front?token=test-Token_123")
+            .header(header::CONTENT_LENGTH, "16777217");
+        for value in values {
+            request = request.header(header::AUTHORIZATION, value);
+        }
+        let response = app
+            .clone()
+            .oneshot(request.body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    }
+}
+
+#[tokio::test]
+async fn bearer_auth_preserves_rendered_image_bytes() {
+    use axum::http::header;
+
+    let request = || {
+        Request::builder()
+            .method("POST")
+            .uri("/raw/image/front?style=avatar&transparent=true")
+            .header(header::CONTENT_TYPE, "image/png")
+    };
+    let without_auth = app()
+        .oneshot(request().body(Body::from(SKIN)).unwrap())
+        .await
+        .unwrap();
+    let with_auth = authenticated_app(false)
+        .oneshot(
+            request()
+                .header(header::AUTHORIZATION, format!("Bearer {AUTH_TOKEN}"))
+                .body(Body::from(SKIN))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(without_auth.status(), StatusCode::OK);
+    assert_eq!(with_auth.status(), StatusCode::OK);
+    assert_eq!(
+        without_auth.headers()[header::CACHE_CONTROL],
+        "public, max-age=300"
+    );
+    assert_eq!(with_auth.headers()[header::CACHE_CONTROL], "no-store");
+    assert_eq!(body_bytes(with_auth).await, body_bytes(without_auth).await);
+}
+
 #[tokio::test]
 async fn cross_origin_access_requires_opt_in() {
     use axum::http::header::{ACCESS_CONTROL_ALLOW_ORIGIN, ORIGIN};

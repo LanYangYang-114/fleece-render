@@ -93,12 +93,24 @@ docker compose logs -f fleece-render
 | 监听地址 | `server.host` | `FLEECE_RENDER_HOST` | `--host` |
 | 端口 | `server.port` | `FLEECE_RENDER_PORT` | `--port` |
 | 渲染后端 | `render.backend` | `FLEECE_RENDER_BACKEND` | `--backend` |
+| Bearer 认证 | `server.auth_token`（默认空字符串） | — | — |
 | 跨源访问 | `server.allow_cors`（默认 `false`） | — | — |
 | 文件日志基础路径 | `server.log_file` | `FLEECE_RENDER_LOG_FILE` | `--log-file` |
 | 最大日志文件数 | `server.log_max_files`（默认 `30`，至少 `1`） | — | — |
 | 日志过滤器 | `server.log_filter` | `RUST_LOG`、`FLEECE_RENDER_LOG` | — |
 
 同一选项通常按命令行、环境变量、配置文件的顺序取值。日志过滤器优先使用 `RUST_LOG`。`render.backend` 默认是 `auto`，选择规则见[可选 GPU 后端](#可选-gpu-后端)。`render.transparent = true` 将默认背景设为透明，可由单次请求覆盖。
+
+### 启用 Bearer 认证
+
+在实际使用的配置文件中设置：
+
+```toml
+[server]
+auth_token = ""
+```
+
+修改已有的 `[server]` 配置，不要重复添加表头。将空字符串换成随机生成的高强度 Token（例如 32 个随机字节的十六进制编码），然后重启服务。Token 可以包含 ASCII 字母、数字和 `-._~+/`，末尾可带 `=`；不能包含空格。空字符串或省略该字段则关闭认证。除 `/health` 外，请求需带 `Authorization: Bearer <token>`，详见 [HTTP API 文档](API.md#bearer-token-认证)。使用 Docker 时，可把运行用户可读的私有配置文件只读挂载到 `/etc/fleece-render.toml`，不要将真实 Token 写入镜像或提交到 Git。
 
 ## 日志
 
@@ -125,5 +137,5 @@ logs/
 
 - 默认监听 `127.0.0.1:57680`。容器内监听 `0.0.0.0`，Compose 默认仅将端口发布到宿主机回环地址。
 - 默认不允许浏览器跨源访问。仅在可信环境下显式启用 `server.allow_cors = true`；对外部署应由受控入口配置具体允许的来源。
-- 服务没有内置身份验证。纹理输入可让服务读取进程有权访问的本地文件，也可让服务向远程 URL 发起请求；不要把这些接口直接开放给不可信客户端。
+- Bearer 认证默认关闭。启用后仅向可信客户端发放 Token，保护配置文件，并通过 HTTPS 传输凭据。认证不会限制纹理来源：纹理输入仍可读取进程有权访问的本地文件或请求远程 URL，不要将这些接口直接开放给不可信客户端。
 - 如需对外服务，应先隔离渲染进程及其文件访问权限，限制网络出口，并在受控入口只接受允许的纹理来源。请求体和纹理大小限制、网络超时不能代替访问控制。纹理字节限制应用于解码后的 Base64/data URL、原始图片、本地文件及下载内容；图片解码另有 4096 像素边长和内存限制。

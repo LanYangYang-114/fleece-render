@@ -5,7 +5,7 @@
 fleece-render 被拆成两个主要 crate：
 
 1. `fleece-render-core`：纯 Rust 的皮肤模型、场景构建、相机、CPU / 可选 GPU 光栅化、2D 头像合成和 PNG 输出。
-2. `fleece-render-server`：Axum HTTP 路由、配置、profile provider、纹理输入、缓存、限流和日志。
+2. `fleece-render-server`：Axum HTTP 路由、配置、profile provider、纹理输入、缓存、认证、限流和日志。
 
 核心 crate 不依赖 Axum、Reqwest、TOML、Mojang 或任何 HTTP 业务代码。渲染引擎可由命令行工具、测试程序和其他服务直接复用。
 
@@ -34,7 +34,7 @@ crates/
     src/
       config.rs        TOML 和环境变量
       error.rs         结构化 API 错误
-      http.rs          路由、请求参数、响应头和 HTTP access log
+      http.rs          路由、请求参数、响应头、Bearer 认证和 HTTP access log
       input.rs         URL、文件、data URL、Base64 和 raw body
       providers.rs     Mojang/LittleSkin profile provider
       lib.rs           AppState、缓存、并发和 spawn_blocking
@@ -50,6 +50,8 @@ output/                本地生成物，不提交 Git
 ```text
 HTTP request
   -> TraceLayer 记录请求方法/路径/参数名
+  -> Bearer 认证（启用时；精确路径 /health 跳过）
+  -> CORS（如启用）和请求体大小限制
   -> 解析并校验 query 或 JSON
   -> 从 player、URL、文件、Base64 或 raw body 获取纹理
   -> reqwest 下载时执行超时、响应体字节限制和缓存

@@ -50,7 +50,7 @@ cargo run --release --locked -p fleece-render-server --bin fleece-render -- --ho
 
 服务地址为 `http://127.0.0.1:57680`。两种风格默认显示皮肤外层；查询参数 `showOuterLayer=false` 可只渲染基础层。渲染端点、请求示例、参数与返回格式见 [HTTP API 文档](docs/API.md)。构建脚本、Docker、配置和日志见[部署指南](docs/DEPLOYMENT.md)。
 
-> 仅向可信客户端开放服务。纹理输入支持读取服务端本地文件和请求远程 URL，请先阅读[部署安全边界](docs/DEPLOYMENT.md#安全边界)，不要直接暴露到公网。
+> 可在 `fleece-render.toml` 中设置 `server.auth_token` 启用 Bearer 认证（默认关闭，`/health` 始终无需认证）。仅向可信客户端开放服务。纹理输入支持读取服务端本地文件和请求远程 URL，请先阅读[部署安全边界](docs/DEPLOYMENT.md#安全边界)，不要直接暴露到公网。
 
 ### 可选 GPU 加速
 

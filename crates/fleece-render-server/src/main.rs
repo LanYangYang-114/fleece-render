@@ -1,4 +1,5 @@
-use std::fs::OpenOptions;
+mod logging;
+
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -29,7 +30,7 @@ struct Cli {
     #[arg(long, env = "FLEECE_RENDER_BACKEND")]
     backend: Option<String>,
 
-    /// Log file path. An empty value disables the file logger.
+    /// Log base path; each start adds -YYYY-MM-DD-N. Relative to the executable. Empty disables.
     #[arg(long, env = "FLEECE_RENDER_LOG_FILE")]
     log_file: Option<String>,
 }
@@ -57,20 +58,10 @@ async fn main() -> Result<()> {
     let log_filter = std::env::var("RUST_LOG").unwrap_or_else(|_| config.server.log_filter.clone());
     let env_filter = EnvFilter::try_new(&log_filter)
         .with_context(|| format!("invalid log filter {log_filter:?}"))?;
-    let log_file = config.server.log_file.as_deref().map(PathBuf::from);
-    if let Some(path) = log_file {
-        if let Some(parent) = path
-            .parent()
-            .filter(|parent| !parent.as_os_str().is_empty())
-        {
-            std::fs::create_dir_all(parent)
-                .with_context(|| format!("failed to create log directory {}", parent.display()))?;
-        }
-        let file = OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(&path)
-            .with_context(|| format!("failed to open log file {}", path.display()))?;
+    if let Some((path, file)) = logging::open_log_file(
+        config.server.log_file.as_deref(),
+        config.server.log_max_files,
+    )? {
         let writer = std::io::stderr.and(Arc::new(file));
         tracing_subscriber::fmt()
             .with_env_filter(env_filter)
@@ -78,12 +69,13 @@ async fn main() -> Result<()> {
             .compact()
             .with_writer(writer)
             .init();
-        tracing::info!(log_file = %path.display(), "file logging enabled");
+        tracing::info!(log_file = %path.display(), log_max_files = config.server.log_max_files, "file logging enabled");
     } else {
         tracing_subscriber::fmt()
             .with_env_filter(env_filter)
             .with_target(true)
             .compact()
+            .with_writer(std::io::stderr)
             .init();
         tracing::info!("file logging disabled");
     }

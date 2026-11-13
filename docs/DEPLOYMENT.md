@@ -81,7 +81,7 @@ docker compose up --build -d
 docker compose logs -f fleece-render
 ```
 
-容器默认从 `/etc/fleece-render.toml` 读取配置，日志只写入标准错误。若要启用文件日志，可将 `FLEECE_RENDER_LOG_FILE` 设为运行用户可写的路径，例如 `/var/lib/fleece-render/fleece-render.log`；如需在容器重建后保留日志，请挂载持久化存储。
+容器默认从 `/etc/fleece-render.toml` 读取配置，日志只写入标准错误。若要启用文件日志，可将 `FLEECE_RENDER_LOG_FILE` 设为运行用户可写的路径，例如 `/var/lib/fleece-render/logs/fleece-render.log`，每次启动会生成带日期和序号的新文件（见[日志](#日志)）；如需在容器重建后保留日志，请挂载持久化存储。
 
 ## 配置
 
@@ -94,14 +94,32 @@ docker compose logs -f fleece-render
 | 端口 | `server.port` | `FLEECE_RENDER_PORT` | `--port` |
 | 渲染后端 | `render.backend` | `FLEECE_RENDER_BACKEND` | `--backend` |
 | 跨源访问 | `server.allow_cors`（默认 `false`） | — | — |
-| 文件日志路径 | `server.log_file` | `FLEECE_RENDER_LOG_FILE` | `--log-file` |
+| 文件日志基础路径 | `server.log_file` | `FLEECE_RENDER_LOG_FILE` | `--log-file` |
+| 最大日志文件数 | `server.log_max_files`（默认 `30`，至少 `1`） | — | — |
 | 日志过滤器 | `server.log_filter` | `RUST_LOG`、`FLEECE_RENDER_LOG` | — |
 
 同一选项通常按命令行、环境变量、配置文件的顺序取值。日志过滤器优先使用 `RUST_LOG`。`render.backend` 默认是 `auto`，选择规则见[可选 GPU 后端](#可选-gpu-后端)。`render.transparent = true` 将默认背景设为透明，可由单次请求覆盖。
 
 ## 日志
 
-服务默认写入标准错误，并追加到 `output/logs/fleece-render.log`。将 `--log-file` 或 `FLEECE_RENDER_LOG_FILE` 设为空字符串可关闭文件日志。用 `RUST_LOG=info` 查看请求日志；日志记录方法、路径、参数名、状态和耗时，不记录查询参数值。
+服务默认同时写入标准错误和**可执行文件同级的 `logs/` 目录**，不再使用 `output/logs/`。每次启动创建独立文件，例如：
+
+```text
+fleece-render.exe
+logs/
+  fleece-render-2026-11-13-1.log
+  fleece-render-2026-11-13-2.log
+```
+
+- 默认 `server.log_file = "logs/fleece-render.log"` 是日志的**基础路径**。程序会在扩展名前添加 `-YYYY-MM-DD-N`；日期取启动时的系统本地日期，`N` 为该目录下相同基础文件名当天已有的最大序号加一，从 `1` 开始，不补回删除文件留下的空号。
+- 每次启动使用新文件，不覆盖或追加到旧日志；同时启动多个实例也会使用不同文件。一轮运行跨过午夜时继续写入启动时创建的文件，不按日切换。
+- `server.log_max_files = 30` 控制最多保留的日志文件数，必须至少为 `1`。**每次启动创建新文件后**检查数量，超过上限则按文件名中的日期、数字序号从旧到新删除，直至满足上限；数量包含本次启动的新文件，本次文件始终保留。序号按数值比较，例如 `2` 比 `10` 旧，不受文件修改时间影响。
+- 清理只针对当前日志目录中、相同基础文件名和扩展名、符合 `基础名-YYYY-MM-DD-N.扩展名` 格式的普通文件，不递归、不删除子目录、符号链接、其他文件或不同基础名的日志。关闭文件日志时也不执行清理。多个长期运行的实例建议配置不同的日志基础路径，避免相互清理旧日志。
+- **相对路径以可执行文件目录为基准**，与启动工作目录或配置文件位置无关；绝对路径按原样使用。例如 `--log-file /var/log/fleece-render/service.log` 生成 `/var/log/fleece-render/service-2026-11-13-1.log`。
+- 配置文件中的 `log_file = ""`，或将 `--log-file` / `FLEECE_RENDER_LOG_FILE` 设为空字符串，都可关闭文件日志；标准错误输出仍保留。优先级仍为命令行 > 环境变量 > 配置文件 > 内置默认值。
+- 日志目录不存在时自动创建；无写入权限或无法删除超限旧日志时启动会明确报错。安装在只读目录时，请指定可写的绝对路径，或关闭文件日志。Docker 默认仍只写标准错误。
+
+用 `RUST_LOG=info` 查看请求日志；日志记录方法、路径、参数名、状态和耗时，不记录查询参数值。启动日志会显示本次实际使用的日志路径。
 
 ## 安全边界
 

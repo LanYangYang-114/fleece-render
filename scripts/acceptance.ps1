@@ -57,7 +57,12 @@ try {
     }
     if (-not $ready) { throw "server did not become ready on $base" }
     if ($health.backend -ne $backend) { throw "Expected $backend, got $($health.backend)" }
-    Write-Host "[3/5] Server ready at $base (backend=$($health.backend))"
+    $fileLogs = @(Get-ChildItem -LiteralPath $out -File | Where-Object { $_.Name -match '^fleece-render-\d{4}-\d{2}-\d{2}-1\.log$' })
+    if ($fileLogs.Count -ne 1) { throw 'Expected one dated and numbered service log in the acceptance directory' }
+    if (-not (Select-String -LiteralPath $fileLogs[0].FullName -SimpleMatch 'file logging enabled' -Quiet)) {
+        throw 'Service log does not contain startup logging confirmation'
+    }
+    Write-Host "[3/5] Server ready at $base (backend=$($health.backend), log=$($fileLogs[0].Name))"
 
     $skin = (Resolve-Path 'crates/fleece-render-core/tests/fixtures/source_skin.png').Path
     $cape = (Resolve-Path 'crates/fleece-render-core/tests/fixtures/source_cape.png').Path

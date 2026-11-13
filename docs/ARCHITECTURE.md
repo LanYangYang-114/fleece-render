@@ -38,7 +38,8 @@ crates/
       input.rs         URL、文件、data URL、Base64 和 raw body
       providers.rs     Mojang/LittleSkin profile provider
       lib.rs           AppState、缓存、并发和 spawn_blocking
-      main.rs          CLI、日志、监听和优雅退出
+      logging.rs       可执行文件相对路径、本地启动日期、日志序号、排他创建和启动保留数量清理
+      main.rs          CLI、日志初始化、监听和优雅退出
 scripts/               构建、测试、验收和运行脚本
 docs/                  项目文档
 output/                本地生成物，不提交 Git

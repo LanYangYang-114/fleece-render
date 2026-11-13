@@ -21,6 +21,7 @@ pub struct ServerConfig {
     pub render_concurrency: usize,
     pub log_filter: String,
     pub log_file: Option<String>,
+    pub log_max_files: usize,
     pub body_limit_bytes: usize,
 }
 
@@ -34,7 +35,8 @@ impl Default for ServerConfig {
             log_filter:
                 "fleece_render=info,fleece_render_server=info,fleece_render_core=info,tower_http=info"
                     .to_owned(),
-            log_file: Some("output/logs/fleece-render.log".to_owned()),
+            log_file: Some("logs/fleece-render.log".to_owned()),
+            log_max_files: 30,
             body_limit_bytes: 16 * 1024 * 1024,
         }
     }
@@ -172,6 +174,9 @@ impl AppConfig {
         if self.server.render_concurrency == 0 {
             anyhow::bail!("server.render_concurrency must be positive");
         }
+        if self.server.log_max_files == 0 {
+            anyhow::bail!("server.log_max_files must be positive");
+        }
         if self.render.panel_width == 0 || self.render.panel_height == 0 {
             anyhow::bail!("panel dimensions must be positive");
         }
@@ -191,5 +196,35 @@ impl AppConfig {
 
     pub fn config_path() -> Option<PathBuf> {
         std::env::var_os("FLEECE_RENDER_CONFIG").map(PathBuf::from)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn log_retention_defaults_to_thirty_and_accepts_positive_overrides() {
+        let default: AppConfig = toml::from_str("").unwrap();
+        assert_eq!(default.server.log_max_files, 30);
+        for limit in [1, 2, 30, 100] {
+            let config: AppConfig =
+                toml::from_str(&format!("[server]\nlog_max_files = {limit}")).unwrap();
+            assert_eq!(config.server.log_max_files, limit);
+            config.validate().unwrap();
+        }
+    }
+
+    #[test]
+    fn zero_log_retention_is_rejected() {
+        let config: AppConfig = toml::from_str("[server]\nlog_max_files = 0").unwrap();
+        assert!(
+            config
+                .validate()
+                .unwrap_err()
+                .to_string()
+                .contains("log_max_files")
+        );
+        assert!(toml::from_str::<AppConfig>("[server]\nlog_max_files = -1").is_err());
     }
 }

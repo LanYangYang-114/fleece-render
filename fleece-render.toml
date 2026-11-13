@@ -25,9 +25,13 @@ render_concurrency = 4
 # 日志过滤器；可用环境变量 RUST_LOG 覆盖。
 log_filter = "fleece_render=info,fleece_render_server=info,fleece_render_core=info,tower_http=info"
 
-# Append logs here and also mirror them to stderr.
-# 日志追加写入此文件，同时镜像到标准错误输出。
-log_file = "output/logs/fleece-render.log"
+# Log base path, relative to the executable; each start adds -YYYY-MM-DD-N before the extension. Empty disables file logs; stderr remains enabled.
+# 日志基础路径，相对于可执行文件；每次启动在扩展名前添加 -年-月-日-序号。留空关闭文件日志，仍输出到标准错误。
+log_file = "logs/fleece-render.log"
+
+# Maximum number of log files to keep, including this run; delete the oldest on startup. Must be at least 1.
+# 最多保留的日志文件数（包含本次运行）；每次启动时删除超出的最旧日志。必须至少为 1。
+log_max_files = 30
 
 # Global request body limit in bytes. Route-specific limits may be lower.
 # 全局请求体上限（字节），各路由可能有更小的上限。

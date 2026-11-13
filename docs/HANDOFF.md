@@ -34,7 +34,7 @@ cargo test --locked --workspace --features gpu
 
 ### 版本标签与发布渠道
 
-`release` 在推送版本标签时复用 `build-binaries`，生成三个平台的二进制包并上传到 GitHub Releases。正式标签的版本号必须与两个 Cargo 包一致；预发布标签只发布 GitHub 预发行版和容器镜像，不发布到 crates.io。
+`release` 在推送版本标签时复用 `build-binaries`，生成三个平台的二进制包并上传到 GitHub Releases。如果 [`CHANGELOG.md`](../CHANGELOG.md) 中有与标签版本一致的 `## <版本号>` 小节，会将其加入发布说明。正式标签的版本号必须与两个 Cargo 包一致；预发布标签只发布 GitHub 预发行版和容器镜像，不发布到 crates.io。
 
 GitHub Release 创建成功后，crates.io 和镜像各自发布。镜像复用本次构建的 Linux CPU 二进制，支持 `linux/amd64` 和 `linux/arm64`，使用 Git 标签作为镜像标签。正式版同时更新 `latest`，预发布版只发布版本标签。某个渠道失败不会撤回其他渠道已发布的内容。
 

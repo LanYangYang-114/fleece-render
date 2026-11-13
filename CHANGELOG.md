@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.0
+
+- Added optional Bearer token authentication. Set `[server].auth_token` in `fleece-render.toml` and restart, then send `Authorization: Bearer <token>`. Authentication is off by default; `/health` remains public. Protected responses use `Cache-Control: no-store`. Cross-origin browser preflight is not supported when authentication is enabled; use a same-origin entry point.
+- File logging now creates a dated, numbered log on each startup and retains 30 files by default. Set `server.log_max_files` to change the limit. With no log path override, logs are written beside the executable under `logs/`.
+- Added an English README and rendered 3D and avatar examples, and improved configuration and deployment documentation.
+
 ## 0.1.0
 
 - Adopted the fleece-render name: `fleece-render` executable, `fleece-render-core` and `fleece-render-server` crates, `fleece-render.toml`, `FLEECE_RENDER_*` environment variables, and `X-Fleece-Render-*` response headers. Routes and request fields are unchanged.

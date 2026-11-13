@@ -52,6 +52,9 @@ jobs:
       contents: write
 
     steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - name: Download binary archives from this run
         uses: actions/download-artifact@v8
         with:
@@ -81,6 +84,16 @@ jobs:
           flags=(--repo "$GITHUB_REPOSITORY" --verify-tag --generate-notes)
           if [[ "$tag" == *-* ]]; then
             flags+=(--prerelease)
+          fi
+          # Include the matching changelog section before GitHub's generated notes.
+          notes=$(awk -v heading="## ${tag#v}" '
+            { sub(/\r$/, "") }
+            $0 == heading { found = 1; next }
+            found && /^## / { exit }
+            found { print }
+          ' CHANGELOG.md)
+          if [[ "$notes" =~ [^[:space:]] ]]; then
+            flags+=(--notes "$notes")
           fi
           gh release create "$tag" "${assets[@]}" "${flags[@]}"
 

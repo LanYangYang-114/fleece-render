@@ -42,25 +42,27 @@ GET http://127.0.0.1:57680/mojang/image/front
 
 ## 快速开始
 
-按[部署指南](docs/DEPLOYMENT.md#从源码运行)准备 Rust 工具链，然后在仓库根目录运行：
+### 从源码构建
+
+按[部署指南](docs/DEPLOYMENT.md#从源码运行)准备 Rust 工具链，然后在仓库根目录构建并启动服务：
 
 ```sh
 cargo run --release --locked -p fleece-render-server --bin fleece-render -- --host 127.0.0.1
 ```
 
-服务地址为 `http://127.0.0.1:57680`。两种风格默认显示皮肤外层；查询参数 `showOuterLayer=false` 可只渲染基础层。渲染端点、请求示例、参数与返回格式见 [HTTP API 文档](docs/API.md)。构建脚本、Docker、配置和日志见[部署指南](docs/DEPLOYMENT.md)。
+### 在 Docker 部署
 
-> 可在 `fleece-render.toml` 中设置 `server.auth_token` 启用 Bearer 认证（默认关闭，`/health` 始终无需认证）。仅向可信客户端开放服务。纹理输入支持读取服务端本地文件和请求远程 URL，请先阅读[部署安全边界](docs/DEPLOYMENT.md#安全边界)，不要直接暴露到公网。
-
-### 可选 GPU 加速
-
-在装有 Vulkan 驱动且服务进程可访问显卡的机器上，启用 `gpu` Cargo feature：
+使用 GitHub Container Registry 上的预构建镜像，无需下载源码：
 
 ```sh
-cargo run --release --locked -p fleece-render-server --features gpu --bin fleece-render -- --host 127.0.0.1 --backend gpu
+docker run --pull=always -d --name fleece-render -p 127.0.0.1:57680:57680 ghcr.io/lanyangyang-114/fleece-render:latest
 ```
 
-`--backend gpu` 要求实际使用 GPU，无法初始化时启动失败；改用 `--backend auto` 可在 GPU 不可用时回退到 CPU。`avatar` 始终使用 CPU。详见[部署指南](docs/DEPLOYMENT.md#可选-gpu-后端)。
+启动后，访问 `http://127.0.0.1:57680/health` 检查服务状态。渲染请求示例和参数见 [HTTP API 文档](docs/API.md)。
+
+更多部署方式、Docker Compose、配置、日志和可选 GPU 加速，详见[部署指南](docs/DEPLOYMENT.md)。
+
+> 服务默认关闭 Bearer 认证，纹理输入可读取服务端本地文件和请求远程 URL。请先阅读[部署安全边界](docs/DEPLOYMENT.md#安全边界)，不要将服务直接暴露到公网。
 
 ## 开发文档
 

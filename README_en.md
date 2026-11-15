@@ -40,25 +40,27 @@ GET http://127.0.0.1:57680/mojang/image/front
 
 ## Quick start
 
-Set up the Rust toolchain as described in the [deployment guide (Chinese)](docs/DEPLOYMENT.md#从源码运行), then run this command from the repository root:
+### Build from source
+
+Set up the Rust toolchain as described in the [deployment guide (Chinese)](docs/DEPLOYMENT.md#从源码运行), then build and start the service from the repository root:
 
 ```sh
 cargo run --release --locked -p fleece-render-server --bin fleece-render -- --host 127.0.0.1
 ```
 
-The service is available at `http://127.0.0.1:57680`. Both styles show the outer skin layer by default. Set the `showOuterLayer=false` query parameter to render just the base layer. See the [HTTP API reference (Chinese)](docs/API.md) for rendering endpoints, request examples, parameters, and response formats. For build scripts, Docker, configuration, and logging, see the [deployment guide (Chinese)](docs/DEPLOYMENT.md).
+### Deploy with Docker
 
-> Set `server.auth_token` in `fleece-render.toml` to enable Bearer authentication (off by default; `/health` never requires authentication). Only allow trusted clients to access the service. Texture inputs can read local files on the server and fetch remote URLs. Read the [deployment security notes (Chinese)](docs/DEPLOYMENT.md#安全边界) before deploying, and do not expose the service directly to the public internet.
-
-### Optional GPU acceleration
-
-On a machine with Vulkan drivers and a GPU accessible to the service process, enable the `gpu` Cargo feature:
+Run the prebuilt image from GitHub Container Registry without downloading the source:
 
 ```sh
-cargo run --release --locked -p fleece-render-server --features gpu --bin fleece-render -- --host 127.0.0.1 --backend gpu
+docker run --pull=always -d --name fleece-render -p 127.0.0.1:57680:57680 ghcr.io/lanyangyang-114/fleece-render:latest
 ```
 
-With `--backend gpu`, the service fails to start if it cannot initialize the GPU backend. Use `--backend auto` to fall back to the CPU when the GPU is unavailable. The `avatar` style always runs on the CPU. For details, see the [deployment guide (Chinese)](docs/DEPLOYMENT.md#可选-gpu-后端).
+Once started, visit `http://127.0.0.1:57680/health` to check the service. See the [HTTP API reference (Chinese)](docs/API.md) for example render requests and parameters.
+
+For more deployment options, Docker Compose, configuration, logging, and optional GPU acceleration, see the [deployment guide (Chinese)](docs/DEPLOYMENT.md).
+
+> Bearer authentication is off by default, and texture inputs can read local files on the server and fetch remote URLs. Read the [deployment security notes (Chinese)](docs/DEPLOYMENT.md#安全边界) before deploying, and do not expose the service directly to the public internet.
 
 ## Developer documentation
 

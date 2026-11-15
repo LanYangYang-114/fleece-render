@@ -80,23 +80,48 @@ docker run --pull=always -d --name fleece-render -p 127.0.0.1:57680:57680 ghcr.i
 
 ### 通过 Compose 拉取 GHCR 镜像
 
-将 [`docker-compose-ghcr.yml`](../docker-compose-ghcr.yml) 和 [`fleece-render.toml`](../fleece-render.toml) 放在同一目录。Compose 从 GHCR 拉取镜像，不在本地构建。
+把 [`docker-compose-ghcr.yml`](../docker-compose-ghcr.yml) 和 [`fleece-render.toml`](../fleece-render.toml) 放在同一目录。Docker 会下载现成的镜像，不用编译。以下命令都在这两个文件所在的目录运行。
 
-- `./fleece-render.toml` 只读挂载到 `/etc/fleece-render.toml`。启动前请确认它是实际存在且容器可读的文件。
-- `./logs` 挂载到 `/logs`。该配置启用了文件日志，日志写入宿主机的 `./logs/`。
+#### 使用镜像默认用户
 
-镜像以非 root 用户运行，`./logs` 必须对该用户可写。在未启用用户命名空间重映射的 Linux Docker 上，如果目录尚未配置权限，可以先执行：
+容器内默认用 `fleece-render` 用户运行，不是 `root`。这个用户需要以下权限：
+
+- **配置文件 `fleece-render.toml`：** 文件必须已存在，服务只需要能读取它，不需要写入权限。
+- **日志目录 `./logs/`：** 服务需要能读写。Docker 会把这个目录挂载到容器内的 `/logs`，如果 `./logs/` 不存在，Docker 会自动创建，但创建后不一定允许 `fleece-render` 写入。
+
+如果日志目录不能写，在常规 Linux Docker 上可用下面的命令查出容器用户的 UID，并把目录交给这个用户：
 
 ```sh
-mkdir -p ./logs
 uid=$(docker compose -f docker-compose-ghcr.yml run --rm --no-deps -T --entrypoint id fleece-render -u) && sudo chown "$uid" ./logs
 ```
 
-启动服务：
+#### 改用宿主机账号的 UID/GID（可选）
+
+如果操作系统的默认权限策略只允许文件所有者读写文件（例如在飞牛 OS 上遇到这种情况），且配置文件属于你的宿主机账号，可以让容器直接使用该账号的 UID 和 GID，无需调整权限策略。
+
+1. 编辑 `docker-compose-ghcr.yml`，在 `fleece-render` 下添加 `user`，和 `image` 对齐：
+
+   ```yaml
+       user: "${FLEECE_RENDER_USER:-fleece-render}"
+   ```
+
+2. 用自己的普通账号执行以下命令，不要加 `sudo`。把输出的整行复制到同目录的 `.env` 文件里。不设置时，仍使用镜像默认的 `fleece-render` 用户。
+
+   ```sh
+   printf 'FLEECE_RENDER_USER=%s:%s\n' "$(id -u)" "$(id -g)"
+   ```
+
+3. 如果 `./logs/` 还不存在，可以用当前账号先执行 `mkdir -p ./logs`，这样目录一开始就归你所有。如果 Docker 已经创建了目录，而当前账号不能写入，可执行 `sudo chown "$(id -u):$(id -g)" ./logs` 调整。
+
+以上权限命令以常规 Linux Docker 为例；如果使用 rootless Docker 或修改过用户映射，请按实际权限设置。
+
+#### 启动或更新
 
 ```sh
 docker compose -f docker-compose-ghcr.yml up -d
 ```
+
+启动后，在运行 Docker 的机器上打开 `http://127.0.0.1:57680/health` 检查服务是否正常。
 
 ### 通过 Compose 从源码构建
 

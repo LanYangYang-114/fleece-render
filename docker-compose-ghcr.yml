@@ -1,0 +1,23 @@
+services:
+  fleece-render:
+    image: ghcr.io/lanyangyang-114/fleece-render:latest
+    pull_policy: always
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:57680:57680"
+    environment:
+      FLEECE_RENDER_LOG_FILE: /logs/fleece-render.log
+    volumes:
+      - ./logs:/logs
+      - type: bind
+        source: ./fleece-render.toml
+        target: /etc/fleece-render.toml
+        read_only: true
+        bind:
+          create_host_path: false
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:57680/health >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s

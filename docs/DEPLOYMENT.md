@@ -66,7 +66,11 @@ cargo build --release --locked -p fleece-render-server --features gpu --bin flee
 
 ## Docker
 
-从 GitHub Container Registry 拉取 `latest` 镜像并启动服务：
+以下三种方式任选其一，默认都只在宿主机的 `127.0.0.1:57680` 上开放服务。
+
+### 直接拉取 GHCR 镜像
+
+无需下载 Compose 文件，直接运行以下命令拉取镜像并启动服务：
 
 ```sh
 docker run --pull=always -d --name fleece-render -p 127.0.0.1:57680:57680 ghcr.io/lanyangyang-114/fleece-render:latest
@@ -74,14 +78,36 @@ docker run --pull=always -d --name fleece-render -p 127.0.0.1:57680:57680 ghcr.i
 
 镜像支持 Linux x86-64 和 ARM64，Docker 会自动选择对应平台。正式版同时提供 `latest` 标签；预发布版只有版本标签。需要固定版本时，将命令中的 `latest` 替换为所需版本的 Git 标签。
 
-也可以使用仓库中的 Compose 配置从源码构建和启动服务。镜像使用 `fleece-render:local` 作为本地标签，服务实际版本仍由构建时的 Cargo 版本决定。端口默认只发布到宿主机回环地址：
+### 通过 Compose 拉取 GHCR 镜像
+
+将 [`docker-compose-ghcr.yml`](../docker-compose-ghcr.yml) 和 [`fleece-render.toml`](../fleece-render.toml) 放在同一目录。Compose 从 GHCR 拉取镜像，不在本地构建。
+
+- `./fleece-render.toml` 只读挂载到 `/etc/fleece-render.toml`。启动前请确认它是实际存在且容器可读的文件。
+- `./logs` 挂载到 `/logs`。该配置启用了文件日志，日志写入宿主机的 `./logs/`。
+
+镜像以非 root 用户运行，`./logs` 必须对该用户可写。在未启用用户命名空间重映射的 Linux Docker 上，如果目录尚未配置权限，可以先执行：
 
 ```sh
-docker compose up --build -d
-docker compose logs -f fleece-render
+mkdir -p ./logs
+uid=$(docker compose -f docker-compose-ghcr.yml run --rm --no-deps -T --entrypoint id fleece-render -u) && sudo chown "$uid" ./logs
 ```
 
-容器默认从 `/etc/fleece-render.toml` 读取配置，日志只写入标准错误。若要启用文件日志，可将 `FLEECE_RENDER_LOG_FILE` 设为运行用户可写的路径，例如 `/var/lib/fleece-render/logs/fleece-render.log`，每次启动会生成带日期和序号的新文件（见[日志](#日志)）；如需在容器重建后保留日志，请挂载持久化存储。
+启动服务：
+
+```sh
+docker compose -f docker-compose-ghcr.yml up -d
+```
+
+### 通过 Compose 从源码构建
+
+在仓库根目录使用 [`docker-compose.yml`](../docker-compose.yml) 从源码构建并启动。构建后的镜像标记为 `fleece-render:local`，服务实际版本由构建时的 Cargo 版本决定：
+
+```sh
+docker compose -f docker-compose.yml up --build -d
+docker compose -f docker-compose.yml logs -f fleece-render
+```
+
+未覆盖镜像设置时，容器从 `/etc/fleece-render.toml` 读取内置配置，日志只写入标准错误。若要启用文件日志，可将 `FLEECE_RENDER_LOG_FILE` 设为运行用户可写的路径，例如 `/var/lib/fleece-render/logs/fleece-render.log`，每次启动会生成带日期和序号的新文件（见[日志](#日志)）；如需在容器重建后保留日志，请挂载持久化存储。
 
 ## 配置
 

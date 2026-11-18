@@ -1,5 +1,5 @@
 use axum::body::{Body, Bytes};
-use axum::extract::{Path, Query, State};
+use axum::extract::{Path, State};
 use axum::http::{HeaderValue, Request, StatusCode, header};
 use axum::middleware::{self, Next};
 use axum::response::{IntoResponse, Response};
@@ -21,10 +21,14 @@ use tower_http::trace::TraceLayer;
 use tracing::Span;
 
 use crate::config::AppConfig;
-use crate::error::{ApiError, ApiResult};
+use crate::error::{ApiError, ApiResult, normalize_http_error};
 use crate::input::decode_request_body;
 use crate::providers::{PlayerProfile, ProfileSource};
 use crate::{AppState, prepare_skin};
+
+mod query;
+
+use query::ApiQuery;
 
 pub fn build_router(state: AppState) -> Router {
     let body_limit = state.config.server.body_limit_bytes;
@@ -51,6 +55,7 @@ pub fn build_router(state: AppState) -> Router {
         ));
     }
     router
+        .layer(middleware::from_fn(normalize_errors))
         .layer(
             TraceLayer::new_for_http()
                 .make_span_with(|request: &Request<Body>| {
@@ -86,6 +91,10 @@ pub fn build_router(state: AppState) -> Router {
                 ),
         )
         .with_state(state)
+}
+
+async fn normalize_errors(request: Request<Body>, next: Next) -> Response {
+    normalize_http_error(next.run(request).await)
 }
 
 async fn require_bearer_token(
@@ -258,9 +267,12 @@ impl CommonQuery {
 struct UrlQuery {
     style: Option<String>,
     definition: Option<f32>,
+    #[serde(default, deserialize_with = "query::optional_bool")]
     transparent: Option<bool>,
     timeout: Option<f64>,
+    #[serde(default, deserialize_with = "query::optional_bool")]
     show_outer_layer: Option<bool>,
+    #[serde(default, deserialize_with = "query::optional_bool")]
     show_name: Option<bool>,
     name_tag: Option<String>,
     model: Option<String>,
@@ -293,13 +305,17 @@ impl UrlQuery {
 struct ProfileQuery {
     style: Option<String>,
     definition: Option<f32>,
+    #[serde(default, deserialize_with = "query::optional_bool")]
     transparent: Option<bool>,
     timeout: Option<f64>,
+    #[serde(default, deserialize_with = "query::optional_bool")]
     show_outer_layer: Option<bool>,
+    #[serde(default, deserialize_with = "query::optional_bool")]
     show_name: Option<bool>,
     name_tag: Option<String>,
     model: Option<String>,
     name: String,
+    #[serde(default, deserialize_with = "query::optional_bool")]
     use_cape: Option<bool>,
     back_equipment: Option<String>,
 }
@@ -322,7 +338,7 @@ impl ProfileQuery {
 async fn url_image(
     State(state): State<AppState>,
     Path(parts): Path<String>,
-    Query(query): Query<UrlQuery>,
+    ApiQuery(query): ApiQuery<UrlQuery>,
 ) -> ApiResult<Response> {
     let parts = parse_parts(&parts)?;
     let mut options = query.common_options().options(&state, parts)?;
@@ -340,7 +356,7 @@ async fn url_image(
 
 async fn url_json_all(
     State(state): State<AppState>,
-    Query(query): Query<UrlQuery>,
+    ApiQuery(query): ApiQuery<UrlQuery>,
 ) -> ApiResult<Json<Value>> {
     let mut options = query.common_options().options(&state, Parts::All)?;
     apply_back_equipment(&mut options, query.back_equipment.as_deref())?;
@@ -363,7 +379,7 @@ async fn url_json_all(
 async fn raw_image(
     State(state): State<AppState>,
     Path(parts): Path<String>,
-    Query(query): Query<UrlQuery>,
+    ApiQuery(query): ApiQuery<UrlQuery>,
     body: Bytes,
 ) -> ApiResult<Response> {
     let parts = parse_parts(&parts)?;
@@ -393,7 +409,7 @@ async fn raw_image(
 async fn mojang_image(
     State(state): State<AppState>,
     Path(parts): Path<String>,
-    Query(query): Query<ProfileQuery>,
+    ApiQuery(query): ApiQuery<ProfileQuery>,
 ) -> ApiResult<Response> {
     profile_image(state, parts, query, ProfileSource::Mojang).await
 }
@@ -401,7 +417,7 @@ async fn mojang_image(
 async fn littleskin_image(
     State(state): State<AppState>,
     Path(parts): Path<String>,
-    Query(query): Query<ProfileQuery>,
+    ApiQuery(query): ApiQuery<ProfileQuery>,
 ) -> ApiResult<Response> {
     profile_image(state, parts, query, ProfileSource::LittleSkin).await
 }
@@ -503,7 +519,7 @@ struct V1Query {
 async fn api_v1_render(
     State(state): State<AppState>,
     Path(parts): Path<String>,
-    Query(query): Query<V1Query>,
+    ApiQuery(query): ApiQuery<V1Query>,
     Json(request): Json<V1Request>,
 ) -> ApiResult<Response> {
     let parts = parse_parts(&parts)?;

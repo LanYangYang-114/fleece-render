@@ -33,8 +33,9 @@ crates/
   fleece-render-server/
     src/
       config.rs        TOML 和环境变量
-      error.rs         结构化 API 错误
+      error.rs         结构化 API 错误、框架错误响应规范化
       http.rs          路由、请求参数、响应头、Bearer 认证和 HTTP access log
+      http/query.rs    兼容布尔查询解析、查询提取错误封装
       input.rs         URL、文件、data URL、Base64 和 raw body
       providers.rs     Mojang/LittleSkin profile provider
       lib.rs           AppState、缓存、并发和 spawn_blocking
@@ -62,10 +63,13 @@ HTTP request
        -> avatar: 直接从展开图采样基础脸部，可选合成帽子层
        -> 统一 PNG 编码
   -> PNG 或 JSON/Base64 response
+  -> 错误响应规范化（保留 HTTP 状态码和协议头，统一 JSON 错误结构）
   -> TraceLayer 记录状态码、响应大小和耗时
 ```
 
 渲染在 `tokio::task::spawn_blocking` 中运行，`Semaphore` 默认限制同时运行的渲染任务为 4。即使 HTTP 超时，任务也会持有并发名额直到实际退出。
+
+错误响应规范化层位于认证、CORS 和请求体限制之外、访问日志之内，覆盖提取器拒绝和路由回退；不改变认证与 CORS 的先后顺序。已由 `ApiError` 生成的响应通过内部标记保留原有错误详情；框架拒绝保留原 HTTP 状态码，替换为相同的 `code` / `message` / `details` 结构，同时保留 `Allow`、CORS、认证和缓存控制头，不读取被拒绝的原响应体。查询参数兼容大小写和 `1/0`、`yes/no` 等布尔写法，JSON 请求字段类型不变。
 
 ## 4. 核心扩展接口
 

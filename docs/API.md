@@ -92,6 +92,17 @@ Invoke-WebRequest -UseBasicParsing 'http://127.0.0.1:57680/api/v1/styles' `
 | `model` | string | `auto-detect` | `auto-detect`、`default/classic` 或 `slim`。 |
 | `backEquipment` | string | `cape` | `cape` 或 `elytra`。 |
 
+### 查询参数中的布尔值
+
+URL 查询参数中的 `transparent`、`showOuterLayer`、`showName` 和玩家接口的 `useCape` 接受以下写法，**不区分 ASCII 大小写**：
+
+| 含义 | 可用值 |
+| --- | --- |
+| `true` | `true`、`1`、`yes`、`on`、`t`、`y` |
+| `false` | `false`、`0`、`no`、`off`、`f`、`n` |
+
+例如 `transparent=True`、`transparent=1`、`showOuterLayer=YES`、`useCape=off` 都有效。省略参数时沿用原有默认值；空字符串、`2`、`maybe` 等其他值返回 `400 invalid_request`，不会自动视为 `false`。这些宽松写法仅适用于查询参数；`/api/v1` JSON 请求仍须使用 JSON 布尔值 `true` / `false`，不是字符串或数字。
+
 ### 2D 头像（`style=avatar`）
 
 返回一张 **64×64 PNG**，以最近邻缩放并居中绘制 **48×48 基础脸部**；启用外层且检测到有效帽子纹理时，叠加居中的 **56×56 帽子层**。支持 `64×64`、旧版 `64×32` 皮肤及其整数倍高清展开图。
@@ -320,7 +331,11 @@ PNG 响应会包含：
 
 ## 9. 错误格式
 
-服务处理过程中产生的结构化错误包含 `code`、`message` 和 `details`。HTTP 框架拒绝请求时（例如请求体超过上限）可能直接返回 HTTP 错误，不包含这些字段。
+进入应用路由处理的错误响应统一使用 `application/json`，始终包含 `code`（字符串）、`message`（字符串）和 `details`（对象）。这也包括查询参数解析失败、JSON 请求体解析失败、请求体超过上限、未知路由和不支持的 HTTP 方法，不再混用纯文本或空错误响应。
+
+**统一的是 JSON 结构，不是 HTTP 状态码。** 各类错误保留对应的状态码；例如无效查询参数为 `400`，JSON 字段类型错误为 `422`，请求体超限为 `413`。客户端应结合 HTTP 状态码与 `code` 分支处理，不要依赖 `message` 的具体措辞。原有业务错误的 `code`、`message` 和 `details` 内容保持不变；框架错误的兜底消息不回显原始请求内容。
+
+HTTP 协议层在进入应用路由前拒绝的请求、连接中断及外部代理生成的错误不受此约定控制。`HEAD` 响应按 HTTP 语义不包含响应体。
 
 ```json
 {
@@ -334,9 +349,13 @@ PNG 响应会包含：
 
 | HTTP 状态码 | `code` | 场景 |
 | ---: | --- | --- |
-| 400 | `invalid_request` / `texture` / `unknown_style` | 参数、图片或风格无效。 |
+| 400 | `invalid_request` / `texture` / `unknown_style` | 查询参数解析或业务校验失败、JSON 语法错误、图片或风格无效。 |
 | 401 | `unauthorized` | 已启用 Bearer 认证，请求未提供有效凭据。 |
-| 404 | `player_not_found` | profile 不存在。 |
+| 404 | `player_not_found` / `not_found` | profile 不存在，或请求的路由不存在。 |
+| 405 | `method_not_allowed` | 路由不支持该 HTTP 方法；保留 `Allow` 响应头。 |
+| 413 | `payload_too_large` | 请求体超过全局限制或 HTTP 框架的限制。 |
+| 415 | `unsupported_media_type` | JSON 接口未提供支持的 `Content-Type`。 |
+| 422 | `invalid_request` | JSON 可解析，但字段类型或结构不符合接口要求。 |
 | 504 | `timeout` | 上游下载或渲染超时。 |
 | 502 | `upstream` | Mojang、LittleSkin 或纹理上游错误。 |
 | 503 | `backend` | 请求的渲染后端不可用。 |

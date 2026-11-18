@@ -60,9 +60,16 @@ async fn avatar_player_sources_match_the_same_raw_skin() {
         .await;
         for source in ["mojang", "littleskin"] {
             for lookup in [NAME, UUID] {
-                let request = Request::get(format!("/{source}/image/front?{query}&name={lookup}"))
-                    .body(Body::empty())
-                    .unwrap();
+                let profile_query = format!(
+                    "style=avatar&transparent={}&showOuterLayer={}&showName=YES&useCape=OFF",
+                    if transparent { "YeS" } else { "0" },
+                    if show_outer_layer { "on" } else { "N" },
+                );
+                let request = Request::get(format!(
+                    "/{source}/image/front?{profile_query}&name={lookup}"
+                ))
+                .body(Body::empty())
+                .unwrap();
                 assert_eq!(png(request).await, expected, "{source} {lookup}");
             }
             let request = Request::post("/api/v1/render/front?format=png")
@@ -78,6 +85,115 @@ async fn avatar_player_sources_match_the_same_raw_skin() {
                 ))
                 .unwrap();
             assert_eq!(png(request).await, expected, "v1 {source}");
+        }
+    }
+
+    let baseline = app
+        .clone()
+        .oneshot(
+            Request::post("/raw/image/front?definition=0.25&showName=false")
+                .body(Body::from(SKIN))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(baseline.status(), StatusCode::OK);
+    let expected = to_bytes(baseline.into_body(), 65_536).await.unwrap();
+    for source in ["mojang", "littleskin"] {
+        for value in ["0", "NO", "Off", "F", "n"] {
+            // The cached cape is deliberately unavailable: a false alias must skip it.
+            let response = app.clone().oneshot(
+                Request::get(format!(
+                    "/{source}/image/front?name={NAME}&definition=0.25&showName=0&useCape={value}"
+                )).body(Body::empty()).unwrap(),
+            ).await.unwrap();
+            assert_eq!(response.status(), StatusCode::OK, "{source} {value}");
+            assert_eq!(
+                to_bytes(response.into_body(), 65_536).await.unwrap(),
+                expected
+            );
+        }
+    }
+}
+
+#[test]
+fn boolean_query_fields_accept_legacy_spellings_and_preserve_missing_values() {
+    use super::{ProfileQuery, UrlQuery};
+    use axum::extract::Query;
+
+    for (value, expected) in [
+        ("true", true),
+        ("True", true),
+        ("TRUE", true),
+        ("1", true),
+        ("yes", true),
+        ("YeS", true),
+        ("on", true),
+        ("ON", true),
+        ("t", true),
+        ("T", true),
+        ("y", true),
+        ("Y", true),
+        ("false", false),
+        ("False", false),
+        ("FALSE", false),
+        ("0", false),
+        ("no", false),
+        ("nO", false),
+        ("off", false),
+        ("OFF", false),
+        ("f", false),
+        ("F", false),
+        ("n", false),
+        ("N", false),
+    ] {
+        let uri = format!(
+            "/?name=Test&transparent={value}&showOuterLayer={value}&showName={value}&useCape={value}"
+        ).parse().unwrap();
+        let Query(url) = Query::<UrlQuery>::try_from_uri(&uri).unwrap();
+        assert_eq!(url.transparent, Some(expected), "{value}");
+        assert_eq!(url.show_outer_layer, Some(expected), "{value}");
+        assert_eq!(url.show_name, Some(expected), "{value}");
+        let Query(profile) = Query::<ProfileQuery>::try_from_uri(&uri).unwrap();
+        assert_eq!(profile.transparent, Some(expected), "{value}");
+        assert_eq!(profile.show_outer_layer, Some(expected), "{value}");
+        assert_eq!(profile.show_name, Some(expected), "{value}");
+        assert_eq!(profile.use_cape, Some(expected), "{value}");
+    }
+    let uri = "/?name=Test".parse().unwrap();
+    let Query(url) = Query::<UrlQuery>::try_from_uri(&uri).unwrap();
+    let Query(profile) = Query::<ProfileQuery>::try_from_uri(&uri).unwrap();
+    assert!(url.transparent.is_none());
+    assert!(url.show_outer_layer.is_none());
+    assert!(url.show_name.is_none());
+    assert!(profile.transparent.is_none());
+    assert!(profile.show_outer_layer.is_none());
+    assert!(profile.show_name.is_none());
+    assert!(profile.use_cape.is_none());
+
+    for value in ["", "2", "-1", "maybe", "null", "true%20", "%20yes"] {
+        for field in ["transparent", "showOuterLayer", "showName", "useCape"] {
+            let uri = format!("/?name=Test&{field}={value}").parse().unwrap();
+            assert!(
+                Query::<ProfileQuery>::try_from_uri(&uri).is_err(),
+                "{field}={value}"
+            );
+        }
+    }
+}
+
+#[test]
+fn query_boolean_aliases_do_not_change_v1_json_types() {
+    use super::V1Request;
+
+    for field in ["transparent", "showOuterLayer", "showName"] {
+        for value in [json!("yes"), json!("false"), json!(1), json!(0)] {
+            let mut request = json!({});
+            request[field] = value;
+            assert!(
+                serde_json::from_value::<V1Request>(request).is_err(),
+                "{field}"
+            );
         }
     }
 }

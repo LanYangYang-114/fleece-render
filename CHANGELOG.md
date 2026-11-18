@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.1
+
+- Relaxed boolean query parsing: `transparent`, `showOuterLayer`, `showName`, and `useCape` now accept case-insensitive `true`/`false`, `1`/`0`, `yes`/`no`, `on`/`off`, `t`/`f`, and `y`/`n`. Defaults are unchanged, and JSON request fields still require JSON booleans.
+- Standardized application and framework error responses as JSON with `code`, `message`, and `details`, while preserving the appropriate HTTP status and protocol headers. Clients that previously parsed plain-text framework errors should use the JSON envelope instead.
+- Added regression coverage for query aliases, error envelopes, status codes, response headers, and identical PNG output across equivalent inputs.
+- Added GHCR Compose deployment examples and clarified container permissions, loopback-only publishing, LAN access, and public deployment requirements.
+
 ## 0.2.0
 
 - Added optional Bearer token authentication. Set `[server].auth_token` in `fleece-render.toml` and restart, then send `Authorization: Bearer <token>`. Authentication is off by default; `/health` remains public. Protected responses use `Cache-Control: no-store`. Cross-origin browser preflight is not supported when authentication is enabled; use a same-origin entry point.

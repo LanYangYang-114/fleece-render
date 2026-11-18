@@ -1,5 +1,6 @@
 services:
   fleece-render:
+    container_name: fleece-render
     build:
       context: .
       dockerfile: Dockerfile

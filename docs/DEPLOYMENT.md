@@ -134,6 +134,8 @@ docker compose -f docker-compose.yml logs -f fleece-render
 
 未覆盖镜像设置时，容器从 `/etc/fleece-render.toml` 读取内置配置，日志只写入标准错误。若要启用文件日志，可将 `FLEECE_RENDER_LOG_FILE` 设为运行用户可写的路径，例如 `/var/lib/fleece-render/logs/fleece-render.log`，每次启动会生成带日期和序号的新文件（见[日志](#日志)）；如需在容器重建后保留日志，请挂载持久化存储。
 
+两份 Compose 配置都通过 `container_name: fleece-render` 固定容器名称。修改已有部署的配置后，重新运行对应的 `docker compose ... up -d` 命令即可重建容器并应用名称。同一 Docker 主机上的容器名称不能重复；如果已有同名容器，或需要同时运行多个实例，请修改或移除 `container_name`。
+
 ## 配置
 
 完整字段与默认值见 [`fleece-render.toml`](../fleece-render.toml)。未指定配置路径时，程序查找当前工作目录下的 `fleece-render.toml`；文件不存在时使用内置默认值。

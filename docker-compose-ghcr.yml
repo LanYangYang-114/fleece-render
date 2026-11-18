@@ -1,5 +1,6 @@
 services:
   fleece-render:
+    container_name: fleece-render
     image: ghcr.io/lanyangyang-114/fleece-render:latest
     pull_policy: always
     restart: unless-stopped
